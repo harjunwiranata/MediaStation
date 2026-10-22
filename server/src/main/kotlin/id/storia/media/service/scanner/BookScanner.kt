@@ -12,7 +12,10 @@ import java.io.InputStream
 import java.util.zip.ZipFile
 import javax.xml.parsers.DocumentBuilderFactory
 
-class BookScanner(onStatusUpdate: (String?, Int?, Int?) -> Unit) : BaseScanner(onStatusUpdate) {
+class BookScanner(
+    private val libraryType: LibraryType = LibraryType.BOOK,
+    onStatusUpdate: (String?, Int?, Int?) -> Unit
+) : BaseScanner(onStatusUpdate) {
     override suspend fun scan(libraryId: String, root: File) {
         root.walkTopDown().forEach { folder ->
             if (folder.isDirectory) {
@@ -33,7 +36,7 @@ class BookScanner(onStatusUpdate: (String?, Int?, Int?) -> Unit) : BaseScanner(o
                     // Use flattened name as the primary title/identity for the media item
                     val nfoData = NfoData(title = flattenedName)
 
-                    val mediaItemId = processMediaItem(libraryId, LibraryType.BOOK, folder, nfoData)
+                    val mediaItemId = processMediaItem(libraryId, libraryType, folder, nfoData)
 
                     val imagesAtThisLevel = files.filter { isImageFile(it) }
 

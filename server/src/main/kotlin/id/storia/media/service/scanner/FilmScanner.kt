@@ -3,7 +3,7 @@ package id.storia.media.service.scanner
 import id.storia.media.data.model.LibraryType
 import java.io.File
 
-class MovieScanner(onStatusUpdate: (String?, Int?, Int?) -> Unit) : BaseScanner(onStatusUpdate) {
+class FilmScanner(onStatusUpdate: (String?, Int?, Int?) -> Unit) : BaseScanner(onStatusUpdate) {
     override suspend fun scan(libraryId: String, root: File) {
         val entries = root.listFiles() ?: return
         entries.forEach { entry ->

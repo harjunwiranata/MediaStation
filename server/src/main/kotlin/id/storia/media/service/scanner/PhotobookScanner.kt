@@ -4,7 +4,7 @@ import id.storia.media.data.model.LibraryType
 import id.storia.media.service.NfoData
 import java.io.File
 
-class GalleryScanner(onStatusUpdate: (String?, Int?, Int?) -> Unit) : BaseScanner(onStatusUpdate) {
+class PhotobookScanner(onStatusUpdate: (String?, Int?, Int?) -> Unit) : BaseScanner(onStatusUpdate) {
     override suspend fun scan(libraryId: String, root: File) {
         scanDirectory(libraryId, root, root, "")
     }
