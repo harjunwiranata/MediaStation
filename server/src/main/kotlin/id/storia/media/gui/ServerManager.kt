@@ -1,7 +1,7 @@
 package id.storia.media.gui
 
 import id.storia.media.db.*
-import id.storia.media.module
+import id.storia.media.api.module
 import id.storia.media.util.PathProvider
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*

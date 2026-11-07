@@ -45,8 +45,7 @@ plugins {
 }
 
 include(":app:androidApp")
-include(":app:remoteDesktop")
-include(":app:localDesktop")
+include(":app:desktopApp")
 include(":app:shared")
 include(":core")
 include(":server")

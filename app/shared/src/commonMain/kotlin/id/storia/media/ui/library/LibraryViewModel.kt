@@ -150,6 +150,53 @@ class LibraryViewModel : ViewModel() {
             }
         }
     }
+
+    fun getCategorizedLibraries(libraries: List<Library>): List<Pair<MediaDomain, List<Library>>> {
+        return MediaDomain.entries.mapNotNull { domain ->
+            val matchingLibs = libraries.filter { MediaDomain.fromLibrary(it) == domain }
+            if (matchingLibs.isNotEmpty()) {
+                domain to matchingLibs
+            } else {
+                null
+            }
+        }
+    }
+}
+
+enum class MediaDomain(val title: String) {
+    QUICK_ACCESS("Quick Access"),
+    VIDEO("Video & Movies"),
+    AUDIO("Music & Audio"),
+    READING("Books & Reading"),
+    PHOTOS("Photos & Visuals"),
+    MISC("Other Libraries");
+
+    companion object {
+        fun fromLibrary(library: Library): MediaDomain {
+            if (library.id.endsWith("_internal")) return QUICK_ACCESS
+            return when (library.type) {
+                LibraryType.FILM,
+                LibraryType.SERIES,
+                LibraryType.MUSIC_VIDEO,
+                LibraryType.WEB_VOD,
+                LibraryType.BROADCAST,
+                LibraryType.VIDEO -> VIDEO
+
+                LibraryType.MUSIC_ALBUM,
+                LibraryType.PODCAST,
+                LibraryType.AUDIO -> AUDIO
+
+                LibraryType.BOOK,
+                LibraryType.COMIC,
+                LibraryType.DOCUMENT -> READING
+
+                LibraryType.PHOTOBOOK,
+                LibraryType.IMAGE -> PHOTOS
+
+                LibraryType.MISC -> MISC
+            }
+        }
+    }
 }
 
 sealed class LibraryUiState {
@@ -170,3 +217,4 @@ data class PaginationState(
     val searchQuery: String = "",
     val isLoadingMore: Boolean = false
 )
+

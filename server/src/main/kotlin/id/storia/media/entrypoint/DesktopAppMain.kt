@@ -1,4 +1,4 @@
-package id.storia.media
+package id.storia.media.entrypoint
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -9,11 +9,12 @@ import androidx.compose.ui.window.application
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
+import id.storia.media.App
 import id.storia.media.data.local.DesktopPlaybackRepository
 import id.storia.media.data.local.PlaybackRepositoryProvider
-import id.storia.media.data.remote.DirectApiService
-import id.storia.media.data.remote.DirectAssetProvider
-import id.storia.media.data.remote.DirectStreamProvider
+import id.storia.media.data.local.DirectApiService
+import id.storia.media.data.local.DirectAssetProvider
+import id.storia.media.data.local.DirectStreamProvider
 import id.storia.media.data.remote.KtorClient
 import id.storia.media.gui.ServerManager
 import id.storia.media.player.DesktopMusicPlayer

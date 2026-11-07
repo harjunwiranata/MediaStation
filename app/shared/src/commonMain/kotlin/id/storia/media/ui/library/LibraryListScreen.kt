@@ -1,26 +1,46 @@
 package id.storia.media.ui.library
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import coil3.SingletonImageLoader
 import id.storia.media.data.model.Library
 import id.storia.media.data.model.LibraryType
+import id.storia.media.data.remote.KtorClient
+import id.storia.media.ui.adaptive.LocalWindowSizeClass
+import id.storia.media.ui.adaptive.WindowSizeClass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +54,12 @@ fun LibraryListScreen(
 
     var showAddDialog by remember { mutableStateOf(false) }
     var libraryToDelete by remember { mutableStateOf<Library?>(null) }
+
+    val windowSizeClass = LocalWindowSizeClass.current
+    val gridColumns = when (windowSizeClass) {
+        WindowSizeClass.Compact -> 2
+        WindowSizeClass.Expanded -> 4
+    }
 
     Scaffold(
         topBar = {
@@ -70,57 +96,32 @@ fun LibraryListScreen(
                     }
                 }
                 is LibraryUiState.Success -> {
-                    val specialLibs = libraries.filter { it.id.endsWith("_internal") }
-                    val standardLibs = libraries.filter { !it.id.endsWith("_internal") }
-                    
-                    LazyColumn(
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(gridColumns),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (specialLibs.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Quick Access",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                            }
-                            items(specialLibs) { library ->
-                                val mediaCount = libraryMedia[library.id]?.size ?: 0
-                                LibraryCard(
-                                    library = library,
-                                    mediaCount = mediaCount,
-                                    onClick = { onLibraryClick(library.id, library.name) },
-                                    onScan = { viewModel.scanLibrary(library.id) },
-                                    onDelete = null // Can't delete special libraries
-                                )
-                            }
-                            item { Spacer(modifier = Modifier.height(8.dp)) }
-                        }
+                        items(libraries, key = { it.id }) { library ->
+                            val mediaList = libraryMedia[library.id]
+                            val mediaCount = mediaList?.size ?: 0
 
-                        item {
-                            Text(
-                                text = "All Libraries",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                        }
+                            LaunchedEffect(library.id) {
+                                viewModel.loadLibraryMedia(library.id)
+                            }
 
-                        items(standardLibs) { library ->
-                            val mediaCount = libraryMedia[library.id]?.size ?: 0
-                            LibraryCard(
+                            LibraryGridCard(
                                 library = library,
                                 mediaCount = mediaCount,
+                                posterMediaId = remember(mediaList) { mediaList?.firstOrNull()?.id },
                                 onClick = { onLibraryClick(library.id, library.name) },
                                 onScan = { viewModel.scanLibrary(library.id) },
-                                onDelete = { libraryToDelete = library }
+                                onDelete = if (!library.id.endsWith("_internal")) { { libraryToDelete = library } } else null
                             )
                         }
 
-                        item {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "add_library_card") {
                             AddLibraryCard(onClick = { showAddDialog = true })
                         }
                     }
@@ -165,89 +166,201 @@ fun LibraryListScreen(
 }
 
 @Composable
-fun LibraryCard(
+fun LibraryGridCard(
     library: Library,
     mediaCount: Int,
+    posterMediaId: String?,
     onClick: () -> Unit,
     onScan: () -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val icon = getLibraryIcon(library)
+    val posterUrl = remember(posterMediaId) {
+        posterMediaId?.let { KtorClient.getImageUrl(it, "poster") }
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .height(160.dp)
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = library.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = library.type.displayName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (mediaCount > 0) {
-                    Badge(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ) {
-                        Text(
-                            text = "$mediaCount items",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                } else if (!library.id.endsWith("_internal")) {
-                    Text(
-                        text = "Tap to load",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Background Layer: Media Poster or Fallback Gradient
+            if (!posterUrl.isNullOrBlank()) {
+                val context = LocalPlatformContext.current
+                val imageRequest = remember(posterUrl) {
+                    ImageRequest.Builder(context)
+                        .data(posterUrl)
+                        .crossfade(true)
+                        .build()
                 }
 
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Scan Library") },
-                            onClick = {
-                                showMenu = false
-                                onScan()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) }
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+
+                // Dark Gradient Scrim to ensure high text legibility
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.35f),
+                                    Color.Black.copy(alpha = 0.85f)
+                                )
+                            )
                         )
-                        if (onDelete != null) {
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            )
+                        )
+                )
+            }
+
+            // Foreground Overlay Content
+            Column(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Row: Icon Badge & Options Menu
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = if (posterUrl != null) Color.Black.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                        contentColor = if (posterUrl != null) Color.White else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                        }
+                    }
+
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Menu",
+                                tint = if (posterUrl != null) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
                             DropdownMenuItem(
-                                text = { Text("Delete Library", color = MaterialTheme.colorScheme.error) },
+                                text = { Text("Scan Library") },
                                 onClick = {
                                     showMenu = false
-                                    onDelete()
+                                    onScan()
                                 },
-                                leadingIcon = { Icon(Icons.Default.BrokenImage, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                                leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) }
+                            )
+                            if (onDelete != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Delete Library", color = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        showMenu = false
+                                        onDelete()
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.BrokenImage, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Bottom Section: Library Title & Count
+                Column {
+                    Text(
+                        text = library.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (posterUrl != null) Color.White else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(Modifier.height(2.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = library.type.displayName,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (posterUrl != null) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        if (mediaCount > 0) {
+                            Text(
+                                text = "•",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (posterUrl != null) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outline
+                            )
+                            Text(
+                                text = "$mediaCount items",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (posterUrl != null) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+fun getLibraryIcon(library: Library): ImageVector {
+    if (library.id.endsWith("_internal")) return Icons.Default.History
+    return when (library.type) {
+        LibraryType.FILM,
+        LibraryType.SERIES,
+        LibraryType.MUSIC_VIDEO,
+        LibraryType.WEB_VOD,
+        LibraryType.BROADCAST,
+        LibraryType.VIDEO -> Icons.Default.VideoLibrary
+
+        LibraryType.MUSIC_ALBUM,
+        LibraryType.PODCAST,
+        LibraryType.AUDIO -> Icons.Default.Headphones
+
+        LibraryType.BOOK,
+        LibraryType.COMIC,
+        LibraryType.DOCUMENT -> Icons.AutoMirrored.Filled.MenuBook
+
+        LibraryType.PHOTOBOOK,
+        LibraryType.IMAGE -> Icons.Default.PhotoLibrary
+
+        LibraryType.MISC -> Icons.Default.Folder
     }
 }
 

@@ -11,6 +11,18 @@ class GenericScanner(
     onStatusUpdate: (String?, Int?, Int?) -> Unit
 ) : BaseScanner(onStatusUpdate) {
 
+    private fun isMatchingFile(file: File): Boolean {
+        return file.isFile && when (type) {
+            // Loose Types only
+            LibraryType.VIDEO -> isVideoFile(file)
+            LibraryType.AUDIO -> isAudioFile(file)
+            LibraryType.IMAGE -> isImageFile(file)
+            LibraryType.DOCUMENT -> isBookFile(file)
+            LibraryType.MISC -> isMediaFile(file)
+            else -> false
+        }
+    }
+
     override suspend fun scan(libraryId: String, root: File) {
         // Create a single MediaItem for the entire library/folder
         val mediaItemId = processMediaItem(
@@ -21,21 +33,40 @@ class GenericScanner(
         )
 
         root.walkTopDown().forEach { file ->
-            if (file.isFile && (isVideoFile(file) || isAudioFile(file) || isImageFile(file) || isBookFile(file))) {
+            if (isMatchingFile(file)) {
                 onStatusUpdate(file.name, null, null)
                 
                 var thumbnail: File? = null
                 var width: Int? = null
                 var height: Int? = null
 
-                if (isVideoFile(file)) {
-                    thumbnail = getOrCreateVideoThumbnail(file)
-                    val dimensions = FFmpegUtil.getVideoDimensions(file)
-                    width = dimensions?.first
-                    height = dimensions?.second
-                } else if (isImageFile(file)) {
-                    // For loose images, we could also get dimensions if we want
-                    // but let's stick to video for now as per previous requirement
+                when (type) {
+                    LibraryType.VIDEO -> {
+                        if (isVideoFile(file)) {
+                            thumbnail = getOrCreateVideoThumbnail(file)
+                            val dimensions = FFmpegUtil.getVideoDimensions(file)
+                            width = dimensions?.first
+                            height = dimensions?.second
+                        }
+                    }
+                    LibraryType.AUDIO -> {
+                        // Loose Audio handling
+                    }
+                    LibraryType.IMAGE -> {
+                        // Loose Image handling
+                    }
+                    LibraryType.DOCUMENT -> {
+                        // Loose Document handling
+                    }
+                    LibraryType.MISC -> {
+                        if (isVideoFile(file)) {
+                            thumbnail = getOrCreateVideoThumbnail(file)
+                            val dimensions = FFmpegUtil.getVideoDimensions(file)
+                            width = dimensions?.first
+                            height = dimensions?.second
+                        }
+                    }
+                    else -> {}
                 }
 
                 addMediaFile(

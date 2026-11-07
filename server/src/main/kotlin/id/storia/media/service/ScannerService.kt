@@ -76,13 +76,24 @@ object ScannerService {
 
         try {
             val scanner: MediaScanner = when (libType) {
-                LibraryType.SERIES -> SeriesScanner(::updateStatus)
+                // Managed Types (Dedicated Scanners)
                 LibraryType.FILM -> FilmScanner(::updateStatus)
+                LibraryType.SERIES -> SeriesScanner(::updateStatus)
                 LibraryType.MUSIC_ALBUM -> MusicScanner(::updateStatus)
+                LibraryType.MUSIC_VIDEO -> MusicVideoScanner(::updateStatus)
+                LibraryType.PODCAST -> PodcastScanner(::updateStatus)
                 LibraryType.BOOK -> BookScanner(LibraryType.BOOK, ::updateStatus)
                 LibraryType.COMIC -> BookScanner(LibraryType.COMIC, ::updateStatus)
                 LibraryType.PHOTOBOOK -> PhotobookScanner(::updateStatus)
-                else -> GenericScanner(libType, libName, ::updateStatus)
+                LibraryType.WEB_VOD -> WebVodScanner(::updateStatus)
+                LibraryType.BROADCAST -> BroadcastScanner(::updateStatus)
+
+                // Loose Types (Generic Scanner)
+                LibraryType.VIDEO -> GenericScanner(libType, libName, ::updateStatus)
+                LibraryType.AUDIO -> GenericScanner(libType, libName, ::updateStatus)
+                LibraryType.IMAGE -> GenericScanner(libType, libName, ::updateStatus)
+                LibraryType.DOCUMENT -> GenericScanner(libType, libName, ::updateStatus)
+                LibraryType.MISC -> GenericScanner(libType, libName, ::updateStatus)
             }
 
             folders.forEach { folderPath ->

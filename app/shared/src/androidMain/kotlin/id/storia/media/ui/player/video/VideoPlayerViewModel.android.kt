@@ -143,7 +143,13 @@ actual class VideoPlayerViewModel(application: Application) : AndroidViewModel(a
                     ?: mediaDetails.mainFiles.firstOrNull()
                     ?: mediaDetails.files.first()
 
-                val streamUrl = KtorClient.getStreamUrl(file.id)
+                val rawStreamUrl = KtorClient.getStreamUrl(file.id)
+                val mediaUri = if (rawStreamUrl.startsWith("http://") || rawStreamUrl.startsWith("https://")) {
+                    rawStreamUrl.toUri()
+                } else {
+                    val localFile = java.io.File(rawStreamUrl)
+                    if (localFile.exists()) android.net.Uri.fromFile(localFile) else rawStreamUrl.toUri()
+                }
 
                 _mediaInfo.value = linkedMapOf(
                     "Filename" to file.fileName,
@@ -157,7 +163,7 @@ actual class VideoPlayerViewModel(application: Application) : AndroidViewModel(a
                     _isLandscape.value = width > height
                 }
 
-                val vlcMedia = Media(libVlc, streamUrl.toUri())
+                val vlcMedia = Media(libVlc, mediaUri)
                 vlcMedia.setHWDecoderEnabled(true, false)
                 vlcMedia.addOption(":network-caching=300")
                 vlcMedia.addOption(":clock-jitter=0")

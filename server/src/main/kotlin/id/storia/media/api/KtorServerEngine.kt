@@ -1,14 +1,11 @@
-package id.storia.media
+package id.storia.media.api
 
 import id.storia.media.db.*
 import id.storia.media.service.*
 import id.storia.media.data.model.*
-import id.storia.media.util.PathProvider
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -16,41 +13,6 @@ import io.ktor.server.routing.*
 import io.ktor.server.plugins.partialcontent.*
 import kotlinx.coroutines.launch
 import java.io.File
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.zip.ZipFile
-import javax.jmdns.JmDNS
-import javax.jmdns.ServiceInfo
-
-fun main() {
-    Database.connect(PathProvider.getDatabaseJdbcUrl(), driver = "org.h2.Driver")
-
-    transaction {
-        SchemaUtils.createMissingTablesAndColumns(
-            Libraries,
-            LibraryFolders,
-            MediaItems,
-            MediaFiles,
-            Subtitles,
-            PlaybackProgressTable,
-            ServerSettings
-        )
-    }
-
-    val port = 9090
-    val jmdns = JmDNS.create()
-    val serviceInfo = ServiceInfo.create("_mediastation._tcp.local.", "MediaStation Server", port, "MediaStation Server")
-    jmdns.registerService(serviceInfo)
-
-    Runtime.getRuntime().addShutdownHook(Thread {
-        jmdns.unregisterAllServices()
-        jmdns.close()
-    })
-
-    embeddedServer(Netty, port = port, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
-}
 
 fun Application.module() {
     install(ContentNegotiation) {
@@ -68,7 +30,7 @@ fun Application.module() {
                 get {
                     call.respond(LibraryService.getAllLibraries())
                 }
-                
+
                 post {
                     val input = call.receive<CreateLibraryRequest>()
                     val lib = LibraryService.createLibrary(input.name, input.type, input.paths)
@@ -112,14 +74,14 @@ fun Application.module() {
                     val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 40
                     call.respond(LibraryService.getRecentMediaItems(limit, offset, false))
                 }
-                
+
                 get("/{id}") {
                     val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
                     val item = LibraryService.getMediaItemDetails(id, false) ?: return@get call.respond(HttpStatusCode.NotFound)
                     call.respond(item)
                 }
             }
-            
+
             route("/files") {
                 get("/{id}") {
                     val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
@@ -268,7 +230,7 @@ private suspend fun serveRawFile(call: ApplicationCall) {
     val filename = call.parameters["filename"]
     val path = LibraryService.getFilePath(id) ?: return call.respond(HttpStatusCode.NotFound)
     val file = File(path)
-    
+
     if (!file.exists()) return call.respond(HttpStatusCode.NotFound)
 
     if (filename != null) {

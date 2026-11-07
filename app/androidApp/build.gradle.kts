@@ -77,7 +77,6 @@ dependencies {
     implementation(libs.coil3.compose)
 
     // Navigation
-    implementation(libs.androidx.navigation.compose)
 
     // CMP related
     implementation(libs.compose.uiToolingPreview)

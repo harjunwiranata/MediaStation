@@ -1,5 +1,8 @@
 package id.storia.media.data.remote
 
+import id.storia.media.data.api.ApiService
+import id.storia.media.data.api.AssetProvider
+import id.storia.media.data.api.StreamProvider
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*

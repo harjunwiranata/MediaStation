@@ -1,5 +1,6 @@
 package id.storia.media.data.remote
 
+import id.storia.media.data.api.ApiService
 import id.storia.media.data.model.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*

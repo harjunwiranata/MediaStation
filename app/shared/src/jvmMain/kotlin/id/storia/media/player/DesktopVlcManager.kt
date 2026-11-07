@@ -11,7 +11,7 @@ object DesktopVlcManager {
             initVlc()
             _factory = MediaPlayerFactory(
                 "--no-video-title-show",
-                "-vvv"
+                "-v"
             )
         }
         return _factory!!

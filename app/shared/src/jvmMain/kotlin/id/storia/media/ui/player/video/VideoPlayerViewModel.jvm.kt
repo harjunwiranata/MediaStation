@@ -72,17 +72,6 @@ actual class VideoPlayerViewModel : ViewModel() {
         override fun playing(mediaPlayer: MediaPlayer) {
             if (DesktopVlcManager.currentOwner == this@VideoPlayerViewModel) {
                 _isPlaying.value = true
-                if (!initialSeekApplied && pendingStartPositionMs > 0) {
-                    initialSeekApplied = true
-                    val currentPos = mediaPlayer.status().time()
-                    if (kotlin.math.abs(currentPos - pendingStartPositionMs) > 2000) {
-                        try {
-                            mediaPlayer.controls().setTime(pendingStartPositionMs)
-                        } catch (t: Throwable) {
-                            t.printStackTrace()
-                        }
-                    }
-                }
             } else {
                 _isPlaying.value = false
             }
@@ -97,8 +86,9 @@ actual class VideoPlayerViewModel : ViewModel() {
         }
 
         override fun error(mediaPlayer: MediaPlayer) {
-            println("VLC Error event received")
-            _errorMessage.value = "VLC Error: Failed to play media format or stream"
+            val mrl = runCatching { mediaPlayer.media().info()?.mrl() }.getOrNull()
+            println("[VLC Error] Event received for MRL: $mrl")
+            _errorMessage.value = "VLC Error: Failed to play media format or stream (${mrl ?: "Unknown MRL"})"
         }
     }
 
@@ -127,6 +117,7 @@ actual class VideoPlayerViewModel : ViewModel() {
                     val localFile = java.io.File(rawStreamUrl)
                     if (localFile.exists()) localFile.absolutePath else rawStreamUrl
                 }
+                println("[VideoPlayer] Loading mediaId='$mediaId', fileId='$fileId', rawStreamUrl='$rawStreamUrl', streamUrl='$streamUrl'")
 
                 _mediaInfo.value = linkedMapOf(
                     "Filename" to file.fileName,
@@ -134,21 +125,23 @@ actual class VideoPlayerViewModel : ViewModel() {
                     "Duration" to "${(file.streamInfo?.durationMs ?: 0L) / 60000} min"
                 )
 
-                val startPosition = file.progress?.positionSeconds?.toLong()?.times(1000) ?: 0L
-                pendingStartPositionMs = startPosition
-                initialSeekApplied = false
+                pendingStartPositionMs = 0L
+                initialSeekApplied = true
 
                 DesktopVlcManager.currentOwner = this@VideoPlayerViewModel
                 
                 try {
+                    runCatching {
+                        if (mediaPlayer.status().isPlaying) {
+                            mediaPlayer.controls().stop()
+                        }
+                    }
+
                     val options = mutableListOf(
                         ":network-caching=1000",
                         ":file-caching=1000",
                         ":clock-jitter=0"
                     )
-                    if (startPosition > 0) {
-                        options.add(":start-time=${startPosition / 1000.0}")
-                    }
 
                     mediaPlayer.videoSurface().set(DesktopVlcManager.factory.videoSurfaces().newVideoSurface(canvas))
                     mediaPlayer.media().play(streamUrl, *options.toTypedArray())
@@ -156,7 +149,7 @@ actual class VideoPlayerViewModel : ViewModel() {
                     println("VLC load error: ${t.message}")
                     t.printStackTrace()
                     _errorMessage.value = "VLC Error: ${t.message ?: "Invalid media or memory access failure"}"
-                    DesktopVlcManager.release()
+                    runCatching { mediaPlayer.controls().stop() }
                     return@launch
                 }
 

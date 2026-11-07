@@ -1,5 +1,6 @@
-package id.storia.media.data.remote
+package id.storia.media.data.local
 
+import id.storia.media.data.api.ApiService
 import id.storia.media.data.model.*
 import id.storia.media.service.LibraryService
 import id.storia.media.service.ScannerService

@@ -1,5 +1,6 @@
-package id.storia.media.data.remote
+package id.storia.media.data.local
 
+import id.storia.media.data.api.StreamProvider
 import id.storia.media.service.LibraryService
 import java.io.File
 

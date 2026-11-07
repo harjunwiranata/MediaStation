@@ -1,5 +1,8 @@
 package id.storia.media
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -236,7 +239,10 @@ fun App(discoveredServers: List<DiscoveredServer> = emptyList(), isLocal: Boolea
                         entryDecorators = listOf(
                             rememberSaveableStateHolderNavEntryDecorator(),
                             rememberViewModelStoreNavEntryDecorator()
-                        )
+                        ),
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                        predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() }
                     )
                 }
             }
